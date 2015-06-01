@@ -1,5 +1,6 @@
 import tkinter as tk
-import os, re, itertools
+import os
+import re
 
 
 def backup():
@@ -11,7 +12,7 @@ def backup():
     os.makedirs(p, exist_ok=True)
 
     if 'hosts_backup_original' in os.listdir(p):
-        ## TODO: add timestamp to backups
+        # TODO: add timestamp to backups
         os.system('cp /etc/hosts ~/.hostess/hosts_backup_recent')
     else:
         os.system('cp /etc/hosts ~/.hostess/hosts_backup_original')
@@ -22,15 +23,18 @@ class Counter(object):
         Creates a helper object for keeping track of rows and columns during
         the window build.
     """
-    
+
     def __init__(self, start=0):
         object.__init__(self)
         self.count = start
+
     def current(self):
         return self.count
+
     def next(self):
         self.count += 1
         return self.count
+
     def reset(self, start=0):
         self.count = start
         return self.count
@@ -55,28 +59,28 @@ class Address(object):
         self.display = display
         self.blocked = blocked
 
-    @staticmethod
-    def new_from_host(host_line):
+    @classmethod
+    def new_from_host(cls, host_line):
         """ Takes a line from the hosts file, returns a new Address object. """
         if re.search(r'(?<=^127.0.1.1\t).*', host_line):
             # currently blocked
             display = re.search(r'(?<=^127.0.1.1\t).*', host_line).group(0)
             blocked = True
-            return Address(display=display, blocked=blocked)
+            return cls(display=display, blocked=blocked)
         elif re.search(r'(?<=^\#127.0.1.1\t).*', host_line):
             # currently commented out in /etc/hosts
             display = re.search(r'(?<=^\#127.0.1.1\t).*', host_line).group(0)
             blocked = False
-            return Address(display=display, blocked=blocked)
+            return cls(display=display, blocked=blocked)
         else:
-            return None # throw exception?
-    
-    @staticmethod
-    def new_from_address(address):
+            return None  # throw exception?
+
+    @classmethod
+    def new_from_address(cls, address):
         """ Takes a web address, creates and returns a new Address object. """
         # test if real web address
-        return Address(display=address, blocked=True)
-        
+        return cls(display=address, blocked=True)
+
     def text(self):
         """
             Return ready to be written line for /etc/hosts, including tab
@@ -85,7 +89,7 @@ class Address(object):
         if self.blocked == True:
             return ''.join(['127.0.1.1\t', self.display, '\n'])
         else:
-            ## unblocked means the line is commented out in /etc/hosts
+            # self.blocked == False means the line is commented out in /etc/hosts
             return ''.join(['#127.0.1.1\t', self.display, '\n'])
 
     def set_blocked(self):
@@ -95,7 +99,7 @@ class Address(object):
     def set_unblocked(self):
         """ Set the blocked attribute to false. """
         self.blocked = False
-        
+
 
 class HostsFileManager(object):
     """
@@ -108,10 +112,14 @@ class HostsFileManager(object):
         managed: list of Address objects of managed web addresses
 
     """
-    
+
     def __init__(self):
         """ Parse the /etc/hosts file and store data in this object. """
         object.__init__(self)
+        self.backup = None
+        self.pre_own = []
+        self.post_own = []
+        self.managed = []
         self.read()
 
     def read(self):
@@ -119,7 +127,7 @@ class HostsFileManager(object):
         hosts_list = f.readlines()
         self.backup = hosts_list
         f.close() # it isn't locked anyway...
-        
+
         if '# begin Hostess ownership\n' in hosts_list:
             start_ownership = hosts_list.index('# begin Hostess ownership\n')
             end_ownership = hosts_list.index('# end Hostess ownership\n')
@@ -131,9 +139,7 @@ class HostsFileManager(object):
             self.managed = [Address.new_from_host(a) for a in owned_raw]
         else:
             self.pre_own = hosts_list
-            self.post_own = []
-            self.managed = []
-    
+
     def write(self):
         """
             Assemble the text file, write to temp directory, then use
@@ -144,7 +150,7 @@ class HostsFileManager(object):
                 ''.join([x, '\n'])
             else:
                 '\n'
-        pre_own = [handle_newlines(a) 
+        pre_own = [handle_newlines(a)
                    for a
                    in self.pre_own]
         post_own = [handle_newlines(a)
@@ -156,7 +162,7 @@ class HostsFileManager(object):
         print('pre_own: ', pre_own)
         print('post_own: ', post_own)
         print('owned: ', owned)
-        
+
         out_list = []
         if len(self.pre_own) > 0:
             for i in self.pre_own:
@@ -176,7 +182,7 @@ class HostsFileManager(object):
         outfile.close()
 
         os.system('gksudo mv /tmp/temp_hosts.tmp /etc/hosts')
-        
+
     def new(self, address):
         """ Takes a web address and adds it to the managed list. """
         self.managed.append(Address.new_from_address(address))
@@ -184,19 +190,27 @@ class HostsFileManager(object):
     def remove(self, address):
         """ Takes a web address and removes it from the managed list. """
         self.managed = list(filter(lambda x: x.display != address, self.managed))
-        
+
 
 class Application(tk.Frame):
     """
         Main tkinter/GUI object.
     """
-    
+
     def __init__(self, master=None):
         tk.Frame.__init__(self, master)
         self.grid()
         self.address_manager = HostsFileManager()
+
+        # these are defined in create_widgets()
+        self.address_label = None
+        self.address_window = None
+        self.save_button = None
+        self.remove_button = None
+        self.add_new_button = None
+        self.add_new_text = None
         self.create_widgets()
-    
+
     def populate_listbox(self):
         # separated for DRYness
         for i in range(len(self.address_manager.managed)):
@@ -208,9 +222,8 @@ class Application(tk.Frame):
 
     def on_listbox_select(self, event):
         # for now, just set *all* select states from the address_window
-        # TODO: find which one changed
+        # TODO: find which one changed instead of overwriting all of them
         widget = event.widget
-        #index = widget.curselection()[
         selections = widget.curselection()
         for i in range(len(self.address_manager.managed)):
             if i in selections:
@@ -222,7 +235,7 @@ class Application(tk.Frame):
         """
             Build gui widgets and display them.
         """
-        
+
         # these counters help keep track of row and column numbers during
         # the window build (can be a big help during interface changes)
         # row.current() gives the current row *without* incrementing the count
@@ -230,7 +243,7 @@ class Application(tk.Frame):
         # row.reset(X) resets the row to X and returns X (useful for columns)
         row = Counter()
         col = Counter()
-        
+
         # make widgets
         self.address_label = tk.Label(self, text="Blocked pages (Grey=blocked, White=not blocked)")
         self.address_window = tk.Listbox(self, selectmode="multiple", width=60)
@@ -244,7 +257,7 @@ class Application(tk.Frame):
         self.add_new_button = tk.Button(self, text="Add New",
                                         command=self.add_new)
         self.add_new_text = tk.Entry(self)
-        
+
         # display widgets
         self.address_label.grid(row=row.current(),
                                 column=col.current())
@@ -267,7 +280,7 @@ class Application(tk.Frame):
         active = self.address_window.get("active")
         self.address_manager.remove(active)
         self.refresh()
-    
+
     def add_new(self):
         """ Add new item to blocked list. """
         self.address_manager.new(self.add_new_text.get())
@@ -277,7 +290,7 @@ class Application(tk.Frame):
         """ Refresh the address listbox with data from the address_manager """
         self.address_window.delete(0, "end")
         self.populate_listbox()
-  
+
     def reset(self):
         """ Reload data from /etc/hosts """
         self.address_manager = HostsFileManager()
