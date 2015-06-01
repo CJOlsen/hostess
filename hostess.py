@@ -1,3 +1,32 @@
+# Author: Christopher Olsen
+# Copyright: 2015
+# Title: Hostess
+# Version: 0.1 (active development/testing)
+#
+# About this program:
+# Hostess provides a graphical interface for your /etc/hosts file that allows
+# you to block and unblock websites with ease.
+#
+# Dependencies:
+# Currently only works with Debian and (maybe) its derivatives.
+# tkinter should be packaged with Python
+#
+# License:
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# """
+
+
 import tkinter as tk
 import os
 import re
@@ -126,7 +155,7 @@ class HostsFileManager(object):
         f = open('/etc/hosts', 'r')
         hosts_list = f.readlines()
         self.backup = hosts_list
-        f.close() # it isn't locked anyway...
+        f.close()  # it isn't locked anyway...
 
         if '# begin Hostess ownership\n' in hosts_list:
             start_ownership = hosts_list.index('# begin Hostess ownership\n')
