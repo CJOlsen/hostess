@@ -3,14 +3,6 @@
 # Title: Hostess
 # Version: 0.1 (active development/testing)
 #
-# About this program:
-# Hostess provides a graphical interface for your /etc/hosts file that allows
-# you to block and unblock websites with ease.
-#
-# Dependencies:
-# Currently only works with Debian and (maybe) its derivatives.
-# tkinter should be packaged with Python
-#
 # License:
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
