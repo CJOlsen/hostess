@@ -80,6 +80,9 @@ class Address(object):
         self.display = display
         self.blocked = blocked
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+    
     @classmethod
     def new_from_host(cls, host_line):
         """ Takes a line from the hosts file, returns a new Address object. """
@@ -143,6 +146,14 @@ class HostsFileManager(object):
         self.managed = []
         self.read()
 
+    def __eq__(self, other):
+        """ Override equality comparison, used to check if file state matches
+            GUI/controller state. """
+        # the backup attributes must be filtered out because if the file
+        # has changed they'll be different
+        return {k: v for k, v in self.__dict__.items() if k != "backup"} \
+               == {k: v for k, v in other.__dict__.items() if k != "backup"}
+        
     def read(self):
         f = open('/etc/hosts', 'r')
         hosts_list = f.readlines()
@@ -178,11 +189,6 @@ class HostsFileManager(object):
                     for a
                     in self.post_own]
         owned = [a.text() for a in self.managed]
-
-        print('self.pre_own: ', self.pre_own)
-        print('pre_own: ', pre_own)
-        print('post_own: ', post_own)
-        print('owned: ', owned)
 
         out_list = []
         if len(self.pre_own) > 0:
@@ -227,6 +233,7 @@ class Application(tk.Frame):
         self.address_label = None
         self.address_window = None
         self.save_button = None
+        self.save_flag_label = None
         self.remove_button = None
         self.add_new_button = None
         self.add_new_text = None
@@ -251,6 +258,25 @@ class Application(tk.Frame):
                 self.address_manager.managed[i].blocked = True
             else:
                 self.address_manager.managed[i].blocked = False
+        self.on_changed()
+
+    def on_changed(self):
+        """
+            Displays an asterisk on the save button when there are
+            unsaved changes.
+        """
+        self.save_button.config(text="Save*")
+        
+    def on_refreshed(self):
+        """
+            Clears the asterisk on the save button when there are
+            no unsaved changes.
+        """
+        # Check if address_manager matches a fresh HostsFileManager        
+        if self.address_manager == HostsFileManager():
+            self.save_button.config(text="Save")
+        else:
+            self.save_button.config(text="Save**")
 
     def create_widgets(self):
         """
@@ -266,17 +292,18 @@ class Application(tk.Frame):
         col = Counter()
 
         # make widgets
-        self.address_label = tk.Label(self, text="Blocked pages (Grey=blocked, White=not blocked)")
+        self.address_label = tk.Label(self,
+                                      text="Blocked pages (Grey=blocked, White=not blocked)")
         self.address_window = tk.Listbox(self, selectmode="multiple", width=60)
         # populate Listbox
         self.populate_listbox()
         # make buttons
         self.save_button = tk.Button(self, text="Save",
-                                     command=self.commit_changes)
+                                     command=self.on_click_save)
         self.remove_button = tk.Button(self, text="Remove Selected",
-                                       command=self.remove)
+                                       command=self.on_click_remove)
         self.add_new_button = tk.Button(self, text="Add New",
-                                        command=self.add_new)
+                                        command=self.on_click_add_new)
         self.add_new_text = tk.Entry(self)
 
         # display widgets
@@ -296,30 +323,34 @@ class Application(tk.Frame):
         # bind events
         self.address_window.bind('<<ListboxSelect>>', self.on_listbox_select)
 
-    def remove(self):
-        """ Remove active item from listbox. web_url: string. """
-        active = self.address_window.get("active")
-        self.address_manager.remove(active)
-        self.refresh()
-
-    def add_new(self):
+    def on_click_add_new(self):
         """ Add new item to blocked list. """
         self.address_manager.new(self.add_new_text.get())
         self.refresh()
+        self.on_changed()
 
     def refresh(self):
         """ Refresh the address listbox with data from the address_manager """
         self.address_window.delete(0, "end")
         self.populate_listbox()
+        self.on_refreshed()
 
     def reset(self):
         """ Reload data from /etc/hosts """
         self.address_manager = HostsFileManager()
         self.refresh()
 
-    def commit_changes(self):
+    def on_click_remove(self):
+        """ Remove active item from listbox. web_url: string. """
+        active = self.address_window.get("active")
+        self.address_manager.remove(active)
+        self.refresh()
+        self.on_changed()
+        
+    def on_click_save(self):
         """ Gather data from gui and commit to /etc/hosts """
         self.address_manager.write()
+        self.refresh()
 
 
 backup()
