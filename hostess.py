@@ -20,23 +20,10 @@
 
 
 import tkinter as tk
-import os
-import re
-
-
-def backup():
-    """
-        Create a single backup of the hosts file the first time the program
-        is run.  If the backup exists leave it alone.
-    """
-    p = os.path.join(os.path.expanduser('~'), '.hostess')
-    os.makedirs(p, exist_ok=True)
-
-    if 'hosts_backup_original' in os.listdir(p):
-        # TODO: add timestamp to backups
-        os.system('cp /etc/hosts ~/.hostess/hosts_backup_recent')
-    else:
-        os.system('cp /etc/hosts ~/.hostess/hosts_backup_original')
+from model import Address
+from model import HostsFileManager
+from model import initialize
+import tkSimpleDialog
 
 
 class Counter(object):
@@ -60,174 +47,93 @@ class Counter(object):
         self.count = start
         return self.count
 
+##class SaveDialog(tk.):
+##    def __init__(self, parent, title="Save Profile"):
+##        Toplevel.__init__(self, parent)
+##        self.transient(parent)
+##        self.title(title)
+##        self.parent = parent
+##        self.result = None
+##
+##        body = tk.Frame(self)
+##        self.initial_focus = self.body(body)
+##
+##        self.bottonbox
+##
+##        
+##        self.top = tk.TopLevel(parent)
 
-class Address(object):
-    """
-        Holds the websites being blocked.
-        Attributes:
-        display: string, display name of the website.
-        blocked: boolean, is the website currently blocked?
-        Methods:
-        text: Returns a string ready for writing to /etc/hosts
-        Class Methods:
-        new_from_hosts: takes a string of the form
-            "#127.0.1.1\twww.example.com\n" and builds a new Address object
-        new_from_address: takes a string of the form "www.example.com" and
-            builds a new Address object
+
+##class SaveDialog(tkSimpleDialog.Dialog):
+##    def body(self, master):
+##        self.master = master
+##        Label(master, text="Profile Name: ").grid(row=0)
+##        self.entry = Entry(master)
+##        self.entry.grid(row=1, column=0)
+##        return self.entry  # initial focus
+##
+##    def apply(self):
+##        prof_name = self.entry.get()
+##        self.master.address_manager.save_profile(prof_name)
+
+
+class SaveProfileDialog:
+    def __init__(self, master):
+        self.top = tk.Toplevel(master)
+        self.master = master
         
-    """
-    def __init__(self, display, blocked=True):
-        self.display = display
-        self.blocked = blocked
+        tk.Label(self.top, text="Profile Name").pack()
 
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
-    
-    @classmethod
-    def new_from_host(cls, host_line):
-        """ Takes a line from the hosts file, returns a new Address object. """
-        if re.search(r'(?<=^127.0.1.1\t).*', host_line):
-            # currently blocked
-            display = re.search(r'(?<=^127.0.1.1\t).*', host_line).group(0)
-            blocked = True
-            return cls(display=display, blocked=blocked)
-        elif re.search(r'(?<=^\#127.0.1.1\t).*', host_line):
-            # currently commented out in /etc/hosts
-            display = re.search(r'(?<=^\#127.0.1.1\t).*', host_line).group(0)
-            blocked = False
-            return cls(display=display, blocked=blocked)
-        else:
-            return None  # throw exception?
+        self.entry = tk.Entry(self.top)
+        self.entry.pack(padx=5)
 
-    @classmethod
-    def new_from_address(cls, address):
-        """ Takes a web address, creates and returns a new Address object. """
-        # test if real web address
-        return cls(display=address, blocked=True)
+        ok_button = tk.Button(self.top, text="OK", command=self.on_ok)
+        ok_button.pack(pady=5)
 
-    def text(self):
-        """
-            Return ready to be written line for /etc/hosts, including tab
-            and newline.
-        """
-        if self.blocked == True:
-            return ''.join(['127.0.1.1\t', self.display, '\n'])
-        else:
-            # self.blocked == False means the line is commented out in /etc/hosts
-            return ''.join(['#127.0.1.1\t', self.display, '\n'])
+    def on_ok(self):
+        prof_name = self.entry.get()
+        self.master.address_manager.save_profile(prof_name)
 
-    def set_blocked(self):
-        """ Set the blocked attribute to true. """
-        self.blocked = True
-
-    def set_unblocked(self):
-        """ Set the blocked attribute to false. """
-        self.blocked = False
+        self.top.destroy()
 
 
-class HostsFileManager(object):
-    """
-        Object to house all the data from the /etc/hosts file
-
-        Attributes:
-        backup: list of hosts file as read in (each line is an item)
-        pre_own: list of portion of hosts file before Hostess owned lines
-        post_own: list....after Hostess owned lines
-        managed: list of Address objects of managed web addresses
-
-    """
-
-    def __init__(self):
-        """ Parse the /etc/hosts file and store data in this object. """
-        object.__init__(self)
-        self.backup = None
-        self.pre_own = []
-        self.post_own = []
-        self.managed = []
-        self.read()
-
-    def __eq__(self, other):
-        """ Override equality comparison, used to check if file state matches
-            GUI/controller state. """
-        # the backup attributes must be filtered out because if the file
-        # has changed they'll be different
-        return {k: v for k, v in self.__dict__.items() if k != "backup"} \
-               == {k: v for k, v in other.__dict__.items() if k != "backup"}
+class LoadProfileDialog:
+    def __init__(self, master, profile_names):
+        self.top = tk.Toplevel(master)
+        self.master = master
         
-    def read(self):
-        f = open('/etc/hosts', 'r')
-        hosts_list = f.readlines()
-        self.backup = hosts_list
-        f.close()  # it isn't locked anyway...
+        tk.Label(self.top, text="Profile Name").pack()
 
-        if '# begin Hostess ownership\n' in hosts_list:
-            start_ownership = hosts_list.index('# begin Hostess ownership\n')
-            end_ownership = hosts_list.index('# end Hostess ownership\n')
+        self.options_listbox = tk.Listbox(self.top)
+        for a in profile_names:
+            self.options_listbox.insert("end", a)
+        self.options_listbox.pack()
+        #self.entry = tk.Entry(self.top)
+        #self.entry.pack(padx=5)
+        
+        ok_button = tk.Button(self.top, text="OK", command=self.on_ok)
+        ok_button.pack(pady=5)
 
-            # save everything before and after the ownership tags
-            self.pre_own = hosts_list[:start_ownership]
-            self.post_own = hosts_list[end_ownership+1:]
-            owned_raw = hosts_list[start_ownership+1:end_ownership]
-            self.managed = [Address.new_from_host(a) for a in owned_raw]
-        else:
-            self.pre_own = hosts_list
-
-    def write(self):
-        """
-            Assemble the text file, write to temp directory, then use
-            gksudo to get write privileges to /etc/hosts.
-        """
-        def handle_newlines(x):
-            if x != '\n':
-                ''.join([x, '\n'])
-            else:
-                '\n'
-        pre_own = [handle_newlines(a)
-                   for a
-                   in self.pre_own]
-        post_own = [handle_newlines(a)
-                    for a
-                    in self.post_own]
-        owned = [a.text() for a in self.managed]
-
-        out_list = []
-        if len(self.pre_own) > 0:
-            for i in self.pre_own:
-                out_list.append(i)
-        if len(owned) > 0:
-            out_list.append('# begin Hostess ownership\n')
-            for i in owned:
-                out_list.append(i)
-            out_list.append('# end Hostess ownership\n')
-        if len(self.post_own) > 0:
-            for i in self.post_own:
-                out_list.append(i)
-
-        out_text = ''.join(out_list)
-        outfile = open('/tmp/temp_hosts.tmp', 'wt')
-        outfile.write(out_text)
-        outfile.close()
-
-        os.system('gksudo mv /tmp/temp_hosts.tmp /etc/hosts')
-
-    def new(self, address):
-        """ Takes a web address and adds it to the managed list. """
-        self.managed.append(Address.new_from_address(address))
-
-    def remove(self, address):
-        """ Takes a web address and removes it from the managed list. """
-        self.managed = list(filter(lambda x: x.display != address, self.managed))
+    def on_ok(self):
+        index = self.options_listbox.curselection()
+        prof_name = self.options_listbox.get(index)
+        self.master.address_manager.load_profile(prof_name)
+        self.master.refresh()
+        self.top.destroy()
 
 
-class Application(tk.Frame):
+
+
+class Application(tk.Tk):
     """
         Main tkinter/GUI object.
     """
 
     def __init__(self, master=None):
-        tk.Frame.__init__(self, master)
+        tk.Tk.__init__(self)
         self.grid()
         self.address_manager = HostsFileManager()
+        self.session_backup = self.address_manager.backup
 
         # these are defined in create_widgets()
         self.address_label = None
@@ -238,7 +144,54 @@ class Application(tk.Frame):
         self.add_new_button = None
         self.add_new_text = None
         self.create_widgets()
+        self.menubar = None
+        self.create_menubar()
+        
+    def create_menubar(self):
+        self.menubar = tk.Menu(self)
+        self.filemenu = tk.Menu(self.menubar, tearoff=0)
+        self.filemenu.add_command(label="Save Profile (not implemented)",
+                                 command=self.on_save_profile)
+        self.filemenu.add_command(label="Load Profile (not implemented)",
+                                 command=self.on_load_profile)
+        self.filemenu.add_separator()
+        self.filemenu.add_command(label="Revert to beginning of session (not implemented)",
+                                 command=self.on_revert_session)
+        self.filemenu.add_command(label="Revert to pre-Hostess /etc/hosts (not implemented)",
+                                 command=self.on_revert_all)
+        self.filemenu.add_separator()
+        self.filemenu.add_command(label="Close and Save",
+                                  command=self.on_close_and_save)
+        self.filemenu.add_command(label="Close",
+                                  command=self.on_close)
 
+        self.menubar.add_cascade(label="File", menu=self.filemenu)
+        self.config(menu=self.menubar)
+
+    def on_save_profile(self):
+        a = SaveProfileDialog(self)
+        
+
+    def on_load_profile(self):
+        names = self.address_manager.get_profile_names()
+        a = LoadProfileDialog(self, names)
+
+    def on_revert_session(self):
+        pass
+
+    def on_revert_all(self):
+        pass
+
+    def on_close_and_save(self):
+        """ Saves changes to /etc/hosts and quits. """
+        self.address_manager.write()
+        # TODO: Check if the save was successful?  
+        self.destroy()
+
+    def on_close(self):
+        """ Discards changes and quits. """
+        self.destroy()
+    
     def populate_listbox(self):
         # separated for DRYness
         for i in range(len(self.address_manager.managed)):
@@ -353,7 +306,7 @@ class Application(tk.Frame):
         self.refresh()
 
 
-backup()
+initialize()
 app = Application()
-app.master.title('Hostess')
+app.title('Hostess')
 app.mainloop()
