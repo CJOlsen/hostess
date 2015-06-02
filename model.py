@@ -19,14 +19,16 @@
 
 
 import os
-import io
 import re
 import json
 
+
 def backup():
     """
-        Create a single backup of the hosts file the first time the program
-        is run.  If the backup exists leave it alone.
+    Create a single backup of the hosts file the first time the program
+    is run.  If the backup exists leave it alone.
+
+    :Return: None
     """
     p = os.path.join(os.path.expanduser('~'), '.hostess')
     os.makedirs(p, exist_ok=True)
@@ -39,11 +41,11 @@ def backup():
 
 
 def initialize():
-    """ Runs when Hostess is started. """
+    """ Runs when Hostess is started. :Return: None """
     backup()
     p = os.path.join(os.path.expanduser('~'), '.hostess/profiles.json')
     
-    open(p, 'a').close() # creates the profiles.json file if it doesn't exist
+    open(p, 'a').close()  # creates the profiles.json file if it doesn't exist
     # if the profiles.json file is empty put an empty json dictionary in it
     if os.stat(p).st_size == 0:
         f = open(p, 'w')
@@ -53,29 +55,45 @@ def initialize():
 
 class Address(object):
     """
-        Holds the websites being blocked.
-        Attributes:
-        display: string, display name of the website.
-        blocked: boolean, is the website currently blocked?
-        Methods:
-        text: Returns a string ready for writing to /etc/hosts
-        Class Methods:
-        new_from_hosts: takes a string of the form
-            "#127.0.1.1\twww.example.com\n" and builds a new Address object
-        new_from_address: takes a string of the form "www.example.com" and
-            builds a new Address object
+    Holds the websites being blocked.
+
+    Attributes:
+    display: string, display name of the website.
+    blocked: boolean, is the website currently blocked?
+
+    Methods:
+    text: Returns a string ready for writing to /etc/hosts
+
+    Class Methods:
+    new_from_hosts: takes a string of the form "#127.0.1.1\twww.example.com\n"
+                    and builds a new Address object
+    new_from_address: takes a string of the form "www.example.com" and
+                      builds a new Address object
         
     """
     def __init__(self, display, blocked=True):
+        """
+        :param display: string, how the address is to be displayed to the user
+        :param blocked: boolean, is the url currently blocked?
+        :return: self
+        """
         self.display = display
         self.blocked = blocked
         
     def __eq__(self, other):
+        """
+        So the '==' operator can be used to compare two Address objects
+        :param other: Address object
+        :return: boolean
+        """
         return self.__dict__ == other.__dict__
     
     @classmethod
     def new_from_host(cls, host_line):
-        """ Takes a line from the hosts file, returns a new Address object. """
+        """
+        :param host_line: string, raw line from hosts file
+        :return: Address object
+        """
         if re.search(r'(?<=^127.0.1.1\t).*', host_line):
             # currently blocked
             display = re.search(r'(?<=^127.0.1.1\t).*', host_line).group(0)
@@ -91,44 +109,52 @@ class Address(object):
 
     @classmethod
     def new_from_address(cls, address, blocked=True):
+        """
+        :param address: string, web address. "www.example.com" or "example.com"
+        :param blocked: boolean, is website currently blocked?
+        :return: Address object
+        """
         """ Takes a web address, creates and returns a new Address object. """
         # test if real web address
         return cls(display=address, blocked=blocked)
 
     def text(self):
         """
-            Return ready to be written line for /etc/hosts, including tab
-            and newline.
+        :return: string, ready to be written line for /etc/hosts, including tab
+                 and newline.
         """
-        if self.blocked == True:
+        if self.blocked is True:
             return ''.join(['127.0.1.1\t', self.display, '\n'])
         else:
             # self.blocked == False means the line is commented out in /etc/hosts
             return ''.join(['#127.0.1.1\t', self.display, '\n'])
 
     def set_blocked(self):
-        """ Set the blocked attribute to true. """
+        """ Set the blocked attribute to true.  :return: None """
         self.blocked = True
 
     def set_unblocked(self):
-        """ Set the blocked attribute to false. """
+        """ Set the blocked attribute to false.  :return: None """
         self.blocked = False
 
 
 class HostsFileManager(object):
     """
-        Object to house all the data from the /etc/hosts file
+    Object to house all the data from the /etc/hosts file
 
-        Attributes:
-        backup: list of hosts file as read in (each line is an item)
-        pre_own: list of portion of hosts file before Hostess owned lines
-        post_own: list....after Hostess owned lines
-        managed: list of Address objects of managed web addresses
-
+    Attributes:
+    backup: list of hosts file as read in (each line is an item)
+    pre_own: list of portion of hosts file before Hostess owned lines
+    post_own: list....after Hostess owned lines
+    managed: list of Address objects of managed web addresses
     """
 
     def __init__(self):
-        """ Parse the /etc/hosts file and store data in this object. """
+        """
+        Parse the /etc/hosts file and store data in this object.
+
+        :return: self
+        """
         object.__init__(self)
         self.backup = None
         self.pre_own = []
@@ -141,14 +167,23 @@ class HostsFileManager(object):
                                           '.hostess/profiles.json')
 
     def __eq__(self, other):
-        """ Override equality comparison, used to check if file state matches
-            GUI/controller state. """
+        """
+        Override equality comparison, used to check if file state matches
+            GUI/controller state.  Ignores self.backup
+        :param other: HostsFileManager object
+        :return: boolean
+        """
         # the backup attributes must be filtered out because if the file
         # has changed they'll be different
         return {k: v for k, v in self.__dict__.items() if k != "backup"} \
                == {k: v for k, v in other.__dict__.items() if k != "backup"}
         
     def read(self):
+        """
+        Read /etc/hosts file and populate attributes.
+
+        :return: None
+        """
         f = open('/etc/hosts', 'r')
         hosts_list = f.readlines()
         self.backup = hosts_list
@@ -168,20 +203,12 @@ class HostsFileManager(object):
 
     def write(self):
         """
-            Assemble the text file, write to temp directory, then use
-            gksudo to get write privileges to /etc/hosts.
+        Assemble the text file, write to temp directory, then use gksudo to get
+        write privileges to /etc/hosts.
+
+        :return: None
         """
-        def handle_newlines(x):
-            if x != '\n':
-                ''.join([x, '\n'])
-            else:
-                '\n'
-        pre_own = [handle_newlines(a)
-                   for a
-                   in self.pre_own]
-        post_own = [handle_newlines(a)
-                    for a
-                    in self.post_own]
+
         owned = [a.text() for a in self.managed]
 
         out_list = []
@@ -205,15 +232,30 @@ class HostsFileManager(object):
         os.system('gksudo mv /tmp/temp_hosts.tmp /etc/hosts')
 
     def new(self, address):
-        """ Takes a web address and adds it to the managed list. """
+        """
+        Takes a web address and adds it to the managed list.
+
+        :param address: string, "www.example.com" or "example.com"
+        :return: None
+        """
         self.managed.append(Address.new_from_address(address))
 
     def remove(self, address):
-        """ Takes a web address and removes it from the managed list. """
+        """
+        Takes a web address and removes it from the managed list.
+
+        :param address: string, "www.example.com" or "example.com"
+        :return: None
+        """
         self.managed = list(filter(lambda x: x.display != address, self.managed))
 
     def save_profile(self, profile_name):
-        """ Saves current profile. """
+        """
+        Saves current profile to ~/.hostess/profiles.json file
+
+        :param profile_name: string, i.e. "No time-wasting profile"
+        :return: None
+        """
         address_list = []
         for address in self.managed:
             address_list.append({"display": address.display,
@@ -223,14 +265,19 @@ class HostsFileManager(object):
         profiles = json.load(profiles_file)       # un-jsonify
         profiles[profile_name] = address_list     # set profile data (overwrites!)
         profiles_file.close()                     # close read version
-        profiles_file = open(self.profiles_path, 'w') # open write version
+        profiles_file = open(self.profiles_path, 'w')  # open write version
         json.dump(profiles, profiles_file)        # jsonify and write
         profiles_file.close()                     # close file
         
         self.profile_name = profile_name
     
     def load_profile(self, profile_name):
-        """ Loads a profile from ~/.hostess/ matching profile_name. """
+        """
+        Loads a profile from ~/.hostess/profiles.json matching profile_name.
+
+        :param profile_name: string, i.e. "No time-wasting profile"
+        :return: None
+        """
         p_file = open(self.profiles_path)
         p = json.load(p_file)
         p_file.close()
@@ -242,15 +289,20 @@ class HostsFileManager(object):
                                                          address["blocked"]))
 
     def get_profile_names(self):
+        """
+        Loads all available profile names from ~/.hostess/profiles
+
+        :return: list of strings
+        """
         p_file = open(self.profiles_path)
         p = json.load(p_file)
         p_file.close()
         return p.keys()
-        
-    
-    def revert_session(self, session_backup):
-        """ Reverts to backup of /etc/hosts at the beginning of the session """
-        pass
 
-    def revert_to_pre_hostess(self):
-        pass
+    # def revert_session(self, session_backup):
+    #     """ Reverts to backup of /etc/hosts at the beginning of the session """
+    #     pass
+    #
+    # def revert_to_pre_hostess(self):
+    #     """ Reverts to backup of /etc/hosts from first time Hostess was opened """
+    #     pass

@@ -20,64 +20,40 @@
 
 
 import tkinter as tk
-from model import Address
 from model import HostsFileManager
 from model import initialize
-import tkSimpleDialog
 
 
 class Counter(object):
     """
-        Creates a helper object for keeping track of rows and columns during
-        the window build.
+    Creates a helper object for keeping track of rows and columns during
+    the window build.
     """
-
     def __init__(self, start=0):
         object.__init__(self)
         self.count = start
 
     def current(self):
+        """ :return: integer, current count. """
         return self.count
 
     def next(self):
+        """ :return: integer, incremented current count. """
         self.count += 1
         return self.count
 
     def reset(self, start=0):
+        """
+        :param start: integer.  What to reset the count to.
+                      (i.e. 3 for 3rd column)
+        :return: int, new count
+        """
         self.count = start
         return self.count
 
-##class SaveDialog(tk.):
-##    def __init__(self, parent, title="Save Profile"):
-##        Toplevel.__init__(self, parent)
-##        self.transient(parent)
-##        self.title(title)
-##        self.parent = parent
-##        self.result = None
-##
-##        body = tk.Frame(self)
-##        self.initial_focus = self.body(body)
-##
-##        self.bottonbox
-##
-##        
-##        self.top = tk.TopLevel(parent)
-
-
-##class SaveDialog(tkSimpleDialog.Dialog):
-##    def body(self, master):
-##        self.master = master
-##        Label(master, text="Profile Name: ").grid(row=0)
-##        self.entry = Entry(master)
-##        self.entry.grid(row=1, column=0)
-##        return self.entry  # initial focus
-##
-##    def apply(self):
-##        prof_name = self.entry.get()
-##        self.master.address_manager.save_profile(prof_name)
-
 
 class SaveProfileDialog:
+    """ Displayed when Save Profile is clicked on the File menu. """
     def __init__(self, master):
         self.top = tk.Toplevel(master)
         self.master = master
@@ -91,6 +67,11 @@ class SaveProfileDialog:
         ok_button.pack(pady=5)
 
     def on_ok(self):
+        """
+        Called when OK button in dialog is clicked. Saves profile, closes self.
+
+        :return: None
+        """
         prof_name = self.entry.get()
         self.master.address_manager.save_profile(prof_name)
 
@@ -98,7 +79,13 @@ class SaveProfileDialog:
 
 
 class LoadProfileDialog:
+    """ Displayed when Load Profile is clicked on the File Menu. """
     def __init__(self, master, profile_names):
+        """
+        :param master: tkinter object that called this dialog
+        :param profile_names: list of strings (profile names)
+        :return:None
+        """
         self.top = tk.Toplevel(master)
         self.master = master
         
@@ -108,13 +95,16 @@ class LoadProfileDialog:
         for a in profile_names:
             self.options_listbox.insert("end", a)
         self.options_listbox.pack()
-        #self.entry = tk.Entry(self.top)
-        #self.entry.pack(padx=5)
         
         ok_button = tk.Button(self.top, text="OK", command=self.on_ok)
         ok_button.pack(pady=5)
 
     def on_ok(self):
+        """
+        Called when OK is clicked in the dialog. Loads profile, closes self.
+
+        :return: None
+        """
         index = self.options_listbox.curselection()
         prof_name = self.options_listbox.get(index)
         self.master.address_manager.load_profile(prof_name)
@@ -122,14 +112,15 @@ class LoadProfileDialog:
         self.top.destroy()
 
 
-
-
 class Application(tk.Tk):
-    """
-        Main tkinter/GUI object.
-    """
+    """ Main tkinter/GUI object. """
 
     def __init__(self, master=None):
+        """
+        :param master: None or tkinter object capable of being a master
+                       (this is the top level object, so master isn't needed)
+        :return: self
+        """
         tk.Tk.__init__(self)
         self.grid()
         self.address_manager = HostsFileManager()
@@ -145,20 +136,26 @@ class Application(tk.Tk):
         self.add_new_text = None
         self.create_widgets()
         self.menubar = None
+        self.filemenu = None
         self.create_menubar()
         
     def create_menubar(self):
+        """
+        Create menubar and submenu(s).
+
+        :return: None
+        """
         self.menubar = tk.Menu(self)
         self.filemenu = tk.Menu(self.menubar, tearoff=0)
         self.filemenu.add_command(label="Save Profile (not implemented)",
-                                 command=self.on_save_profile)
+                                  command=self.on_save_profile)
         self.filemenu.add_command(label="Load Profile (not implemented)",
-                                 command=self.on_load_profile)
+                                  command=self.on_load_profile)
         self.filemenu.add_separator()
         self.filemenu.add_command(label="Revert to beginning of session (not implemented)",
-                                 command=self.on_revert_session)
+                                  command=self.on_revert_session)
         self.filemenu.add_command(label="Revert to pre-Hostess /etc/hosts (not implemented)",
-                                 command=self.on_revert_all)
+                                  command=self.on_revert_all)
         self.filemenu.add_separator()
         self.filemenu.add_command(label="Close and Save",
                                   command=self.on_close_and_save)
@@ -169,39 +166,78 @@ class Application(tk.Tk):
         self.config(menu=self.menubar)
 
     def on_save_profile(self):
+        """
+        Called when Save Profile is clicked in the File menu.
+
+        :return: None
+        """
         a = SaveProfileDialog(self)
-        
 
     def on_load_profile(self):
+        """
+        Called when Load Profile is clicked in the File menu.
+
+        :return: None
+        """
         names = self.address_manager.get_profile_names()
-        a = LoadProfileDialog(self, names)
+        a = LoadProfileDialog(self, names)  # The dialog displays itself
 
     def on_revert_session(self):
+        """
+        Revert to backup hosts file from beginning of session.
+
+        :return: None
+        """
         pass
 
     def on_revert_all(self):
+        """
+        Revert to backup hosts file from first time Hostess was run.
+
+        :return: None
+        """
         pass
 
     def on_close_and_save(self):
-        """ Saves changes to /etc/hosts and quits. """
+        """
+        Saves changes to /etc/hosts and quits.
+
+        :return: None
+        """
         self.address_manager.write()
         # TODO: Check if the save was successful?  
         self.destroy()
 
     def on_close(self):
-        """ Discards changes and quits. """
+        """
+        Discards changes and quits.
+
+        :return: None
+        """
         self.destroy()
     
     def populate_listbox(self):
-        # separated for DRYness
+        """
+        Populates main url display listbox.
+
+        Separated for DRYness.
+        :return: None
+        """
         for i in range(len(self.address_manager.managed)):
             address = self.address_manager.managed[i]
             self.address_window.insert("end",
                                        address.display)
-            if address.blocked == True:
+            if address.blocked is True:
                 self.address_window.select_set(i)
 
     def on_listbox_select(self, event):
+        """
+        Handle events thrown when the main listbox is clicked, event means
+        something was selected or unselected.
+
+        :param event: Bound to <<ListboxSelect>> events
+        :return: None
+        """
         # for now, just set *all* select states from the address_window
         # TODO: find which one changed instead of overwriting all of them
         widget = event.widget
@@ -215,15 +251,18 @@ class Application(tk.Tk):
 
     def on_changed(self):
         """
-            Displays an asterisk on the save button when there are
-            unsaved changes.
+        Displays an asterisk on the save button when there are unsaved changes.
+
+        :return: None
         """
         self.save_button.config(text="Save*")
         
     def on_refreshed(self):
         """
-            Clears the asterisk on the save button when there are
-            no unsaved changes.
+        Clears the asterisk on the save button when there are no unsaved
+        changes.
+
+        :return: None
         """
         # Check if address_manager matches a fresh HostsFileManager        
         if self.address_manager == HostsFileManager():
@@ -233,7 +272,9 @@ class Application(tk.Tk):
 
     def create_widgets(self):
         """
-            Build gui widgets and display them.
+        Build gui widgets and display them.
+
+        :return: None
         """
 
         # these counters help keep track of row and column numbers during
@@ -277,31 +318,52 @@ class Application(tk.Tk):
         self.address_window.bind('<<ListboxSelect>>', self.on_listbox_select)
 
     def on_click_add_new(self):
-        """ Add new item to blocked list. """
+        """
+        Add new item to blocked list.
+
+        :return: None
+        """
         self.address_manager.new(self.add_new_text.get())
         self.refresh()
         self.on_changed()
 
     def refresh(self):
-        """ Refresh the address listbox with data from the address_manager """
+        """
+        Refresh the address listbox with data from the address_manager.
+
+        :return: None
+        """
         self.address_window.delete(0, "end")
         self.populate_listbox()
         self.on_refreshed()
 
     def reset(self):
-        """ Reload data from /etc/hosts """
+        """
+        Reload data from /etc/hosts
+
+        :return: None
+        """
         self.address_manager = HostsFileManager()
         self.refresh()
 
     def on_click_remove(self):
-        """ Remove active item from listbox. web_url: string. """
+        """
+        Remove active item from listbox. web_url: string.
+
+        :return: None
+        """
         active = self.address_window.get("active")
         self.address_manager.remove(active)
         self.refresh()
         self.on_changed()
         
     def on_click_save(self):
-        """ Gather data from gui and commit to /etc/hosts """
+
+        """
+        Gather data from gui and commit to /etc/hosts
+
+        :return: None
+        """
         self.address_manager.write()
         self.refresh()
 
