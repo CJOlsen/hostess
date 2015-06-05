@@ -15,7 +15,7 @@ When Hostess is blocking a website any requests to it will be redirected to 127.
 ## Adding Menu Icons
 In Debian/XFCE follow this documentation: http://wiki.xfce.org/howto/customize-menu which essentially boils down to creating the file: ~/.local/share/applications/hostess.desktop with the contents:
 
-'''
+```
 [Desktop Entry]
 Version=0.1
 Type=Application
@@ -26,7 +26,7 @@ Categories=Network;
 OnlyShowIn=XFCE;
 Name=Hostess
 Comment=Hosts file editor
-'''
+```
 
 Using "Network" for Categories puts hostess in the Internet sub-menu.  To see other options look in ~/.config/menus/xfce-applications.menu for words in the <Category></Category> tags.
 
