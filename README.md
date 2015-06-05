@@ -12,6 +12,26 @@ When Hostess is blocking a website any requests to it will be redirected to 127.
 * Download hostess.py and run from anywhere. ("python hostess.py" or "python3 hostess.py")
 * You must have your password and sufficient privileges to order to edit the /etc/hosts file, generally this means you're in the sudoers list.
 
+## Adding Menu Icons
+In Debian/XFCE follow this documentation: http://wiki.xfce.org/howto/customize-menu which essentially boils down to creating the file: ~/.local/share/applications/hostess.desktop with the contents:
+
+[Desktop Entry]
+Version=0.1
+Type=Application
+Encoding=UTF-8
+Exec=/usr/bin/python3.4 {{** Path to your hostess folder **}}/hostess/hostess.py
+StartupNotify=false
+Categories=Network;
+OnlyShowIn=XFCE;
+Name=Hostess
+Comment=Hosts file editor
+
+Using "Network" for Categories puts hostess in the Internet sub-menu.  To see other options look in ~/.config/menus/xfce-applications.menu for words in the <Category></Category> tags.
+
+## Making the script executable:
+* Add "#!/usr/bin/python3.4" followed by a blank line at the top of hostess.py
+* run "chmod +x hostess.py"
+
 ## Safety and Warnings
 * This project is in early development, use at your own risk!
 * Search the source code for 'os.system' to view the system calls.
